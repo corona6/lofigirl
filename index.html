@@ -25,7 +25,7 @@
 <video id="video-player" muted loop>
     <source src="./fc.mp4" type="video/mp4" />
 </video>
-<audio id="audio-player" loop src="./fc.m4a"></audio>
+
 <div id="play-icon">
     <svg xmlns="http://www.w3.org/2000/svg" width="5rem" height="5rem" fill="#fff" class="bi bi-play-fill"
         viewBox="0 0 16 16">
@@ -35,17 +35,38 @@
 </div>
 <script>
     let isPlay = false;
-    const audioPlayer = document.getElementById('audio-player');
+    let audioContext = null;
+    let audioBuffer = null;
+    let audioSource = null;
     const videoPlayer = document.getElementById('video-player');
     const playIcon = document.getElementById('play-icon');
-    document.body.onclick = function () {
+
+    // ページ読み込み時に音声ファイルをデコードしておく
+    (async function loadAudio() {
+        audioContext = new AudioContext();
+        const response = await fetch('./fc.m4a');
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    })();
+
+    document.body.onclick = async function () {
         isPlay = !isPlay;
         if (isPlay) {
-            audioPlayer.play();
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+            audioSource = audioContext.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.loop = true;
+            audioSource.connect(audioContext.destination);
+            audioSource.start(0);
             videoPlayer.play();
             playIcon.style.display = 'none';
         } else {
-            audioPlayer.pause();
+            if (audioSource) {
+                audioSource.stop();
+                audioSource = null;
+            }
             videoPlayer.pause();
             playIcon.style.display = 'block';
         }
